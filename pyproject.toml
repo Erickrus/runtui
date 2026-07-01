@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "runtui"
-version = "0.1.3"
+version = "0.1.4"
 description = "Modern pure-Python cross-platform TUI framework with RAD designer, themes, mouse support, embedded terminals, and rich widgets"
 readme = "README.md"
 requires-python = ">=3.8"
