@@ -62,6 +62,16 @@ EDITABLE_EXTENSIONS = {
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tiff", ".tif", ".webp"}
 
 
+def _is_containerized() -> bool:
+    """Best-effort detection for Docker/Kubernetes/container runtime."""
+    return (
+        os.path.exists("/.dockerenv")
+        or os.path.exists("/run/.containerenv")
+        or "KUBERNETES_SERVICE_HOST" in os.environ
+        or os.path.exists("/var/run/secrets/kubernetes.io/serviceaccount")
+    )
+
+
 def _move_to_trash(path: Path) -> None:
     """Move a file/directory to the platform's trash/recycle bin.
 
@@ -675,13 +685,24 @@ class TerminalWindow:
             ]),
             Menu("Edit", [
                 MenuItem("Copy", shortcut="Right-Click", action=self._copy),
+                MenuItem("Paste", action=self._paste),
                 MenuItem.separator(),
                 MenuItem("Clear Screen", action=self._clear),
             ]),
         ])
 
     def _copy(self) -> None:
-        self._terminal.copy_selection()
+        if self.app._prefer_internal_terminal_clipboard:
+            text = self._terminal._get_selected_text()
+        else:
+            text = self._terminal.copy_selection()
+
+        if text:
+            TextArea._shared_text_clipboard = text
+
+    def _paste(self) -> None:
+        if TextArea._shared_text_clipboard:
+            self._terminal.write_input(TextArea._shared_text_clipboard)
 
     def _clear(self) -> None:
         # Send "clear" to the PTY — the shell handles it natively
@@ -1102,6 +1123,7 @@ class TuiOS(App):
         self._image_windows: list[ImageViewerWindow] = []
         self._active_wrapper = None
         self._clipboard: list[tuple[str, str]] = []  # [(path, "copy"|"cut"), ...]
+        self._prefer_internal_terminal_clipboard = _is_containerized()
 
     def set_theme(self, name: str) -> None:
         """Switch theme and persist to config."""
