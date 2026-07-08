@@ -8,9 +8,13 @@ import unicodedata
 
 @functools.lru_cache(maxsize=4096)
 def char_width(ch: str) -> int:
-    """Return display width of a single character: 0, 1, or 2."""
+    """Return display width of a character or grapheme cluster: 0, 1, or 2."""
     if not ch:
         return 0
+    # pyte may produce multi-character strings (e.g. base + combining mark);
+    # measure the base character and treat combining marks as zero-width.
+    if len(ch) > 1:
+        return char_width(ch[0])
     # Control characters
     cp = ord(ch)
     if cp < 32 or cp == 0x7F:
@@ -22,7 +26,6 @@ def char_width(ch: str) -> int:
     cat = unicodedata.category(ch)
     if cat.startswith("M"):
         return 0
-    # East Asian Width
     eaw = unicodedata.east_asian_width(ch)
     if eaw in ("F", "W"):
         return 2
