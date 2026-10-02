@@ -1153,8 +1153,16 @@ class TuiOS(App):
                 return
 
     def _force_refresh(self) -> None:
-        """Force a full screen refresh periodically."""
-        self.invalidate_all()
+        """Periodic repaint to resync the UI.
+
+        Uses a diff-based repaint (set _needs_repaint) rather than
+        invalidate_all(), which forces a full-screen redraw every tick. The
+        full redraw floods the outer terminal (e.g. a backgrounded wterm
+        window that isn't draining output), piling up a backlog that stalls
+        the window on switch-back. A plain repaint only writes cells that
+        actually changed, so an idle window emits nothing.
+        """
+        self._needs_repaint = True
 
     # --- System Menu (always leftmost, macOS "apple" menu equivalent) ---
 
