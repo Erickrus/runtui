@@ -91,8 +91,21 @@ class UnixBackend(Backend):
                 self._resize_pending = False
                 return b"\x1b[RESIZE]"  # Synthetic marker
             return b""
-        data = os.read(fd, 4096)
-        return data
+        # Drain all currently-available stdin in one frame. With any-event
+        # mouse tracking (?1003h), fast motion produces far more than a single
+        # 4096-byte read per frame; if we only read one chunk, the OS buffer
+        # backs up and interleaved scroll events are delivered in delayed
+        # bursts, causing the list to lurch by pages while the mouse moves.
+        chunks = [os.read(fd, 4096)]
+        while True:
+            ready, _, _ = select.select([fd], [], [], 0)
+            if not ready:
+                break
+            chunk = os.read(fd, 4096)
+            if not chunk:
+                break
+            chunks.append(chunk)
+        return b"".join(chunks)
 
     def register_pty_fd(self, fd: int, callback: Callable[[bytes], None]) -> None:
         """Register a PTY master fd to be polled in the select() loop."""
