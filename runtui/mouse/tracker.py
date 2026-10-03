@@ -31,6 +31,15 @@ class MouseTracker:
         self.x = event.x
         self.y = event.y
 
+        # The scroll wheel is reported as a PRESS with no matching RELEASE
+        # (SGR has no wheel-release event). Treating it as a button-down would
+        # leave _button_down stuck True, so every later move would be rewritten
+        # into a bogus DRAG carrying the SCROLL button — making lists/editors
+        # keep scrolling while the mouse merely moves. The wheel is not a drag
+        # gesture, so leave button/drag state untouched and pass it through.
+        if event.button in (MouseButton.SCROLL_UP, MouseButton.SCROLL_DOWN):
+            return event
+
         if event.action == MouseAction.PRESS:
             now = time.monotonic()
             # Check for double-click
